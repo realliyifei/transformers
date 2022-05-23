@@ -241,6 +241,12 @@ class BertEmbeddings(nn.Module):
             embeddings += position_embeddings
         embeddings = self.LayerNorm(embeddings)
         embeddings = self.dropout(embeddings)
+        
+        #Add by Yifei
+        #Note that this is the 0-th token layer, so layer_index should be 0
+        print(f"layer_index=0; embeddings ({embeddings.shape}):")
+        print(embeddings)
+        
         return embeddings
 
 
@@ -616,8 +622,10 @@ class BertEncoder(nn.Module):
 
             hidden_states = layer_outputs[0]
             #Add by Yifei
-            print(f"i={i}; hidden_states ({hidden_states.shape}):")
+            #Note that here exludes the 0-th token layer, so layer_index should be (i+1)
+            print(f"layer_index={i+1}; hidden_states ({hidden_states.shape}):")
             print(hidden_states)
+            # hidden_states @ torch.ones(())
             if use_cache:
                 next_decoder_cache += (layer_outputs[-1],)
             if output_attentions:
