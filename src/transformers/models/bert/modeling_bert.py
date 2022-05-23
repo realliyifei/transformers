@@ -615,6 +615,9 @@ class BertEncoder(nn.Module):
                 )
 
             hidden_states = layer_outputs[0]
+            #Add by Yifei
+            print(f"i={i}; hidden_states ({hidden_states.shape}):")
+            print(hidden_states)
             if use_cache:
                 next_decoder_cache += (layer_outputs[-1],)
             if output_attentions:
@@ -881,6 +884,8 @@ class BertModel(BertPreTrainedModel):
     """
 
     def __init__(self, config, add_pooling_layer=True):
+        #Added by Yifei
+        print("Using Yifei-modified version of BERT Model.")
         super().__init__(config)
         self.config = config
 
