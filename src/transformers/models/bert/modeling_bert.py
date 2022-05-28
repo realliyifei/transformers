@@ -110,9 +110,10 @@ import pickle
 import numpy as np
 
 def load_conceptor(path):
-    print(f"Loading conceptor from {path}.")
-    logger.info(f"Loading conceptor from {path}.")
-    negc = torch.tensor(pickle.load(open(path,'rb'))['negC'].astype(np.float32))
+    device = "cuda:0" if torch.cuda.is_available() else "cpu"
+    print(f"Loading conceptor from {path} (device: {device}).")
+    logger.info(f"Loading conceptor from {path} (device: {device}).")
+    negc = torch.tensor(pickle.load(open(path,'rb'))['negC'].astype(np.float32)).to(device)
     return negc
 
 package_directory = os.path.dirname(os.path.abspath(__file__))
@@ -123,7 +124,7 @@ negc2 = load_conceptor(os.path.join(path, "sst-bert-tiny-layer2-percentile1-and-
 layer_index_to_negc = {0: negc0, 1: negc1, 2: negc2}
 
 PRINT_NEGC_INTERMEDIATE = False  #Print each layer's output 
-USE_NEGC = False #Use negc in each layer
+USE_NEGC = True #Use negc in each layer
 
 def load_tf_weights_in_bert(model, config, tf_checkpoint_path):
     """Load tf checkpoints in a pytorch model."""
