@@ -106,6 +106,11 @@ BERT_PRETRAINED_MODEL_ARCHIVE_LIST = [
 ]
 
 #Add by Yifei: load conceptor matrix, negc, for the layers of bert-tiny
+PRINT_NEGC_INTERMEDIATE = False  #Print each layer's output 
+USE_NEGC = True #Use negc in each layer
+# MODEL_VER = 'bert-tiny'
+MODEL_VER = 'bert-base-uncased'
+
 import pickle
 import numpy as np
 
@@ -116,15 +121,25 @@ def load_conceptor(path):
     negc = torch.tensor(pickle.load(open(path,'rb'))['negC'].astype(np.float32)).to(device)
     return negc
 
+model_ver_to_negc_folder = {
+    "bert-tiny": "sst-percentile1-and",
+    "bert-base-uncased": "sst-percentile0.9-extended"
+}
 package_directory = os.path.dirname(os.path.abspath(__file__))
-path = os.path.join(package_directory, "negc", "bert-tiny")
-negc0 = load_conceptor(os.path.join(path, "sst-bert-tiny-layer0-percentile1-and-negc.pkl"))
-negc1 = load_conceptor(os.path.join(path, "sst-bert-tiny-layer1-percentile1-and-negc.pkl"))
-negc2 = load_conceptor(os.path.join(path, "sst-bert-tiny-layer2-percentile1-and-negc.pkl"))
-layer_index_to_negc = {0: negc0, 1: negc1, 2: negc2}
+path = os.path.join(package_directory, "best-negc-for-intervention", MODEL_VER, model_ver_to_negc_folder[MODEL_VER])
+print(path)
 
-PRINT_NEGC_INTERMEDIATE = False  #Print each layer's output 
-USE_NEGC = True #Use negc in each layer
+# negc0 = load_conceptor(os.path.join(path, "layer-0.pkl"))
+# negc1 = load_conceptor(os.path.join(path, "layer-1.pkl"))
+# negc2 = load_conceptor(os.path.join(path, "layer-2.pkl"))
+# layer_index_to_negc = {0: negc0, 1: negc1, 2: negc2}
+
+# layer_index_to_negc = {}
+if MODEL_VER == 'bert-tiny':
+    layer_index_to_negc = {i: load_conceptor(os.path.join(path, f"layer-{i}.pkl")) for i in range(3)}
+elif MODEL_VER == 'bert-base-uncased':
+    layer_index_to_negc = {i: load_conceptor(os.path.join(path, f"layer-{i}.pkl")) for i in range(13)}
+
 
 def load_tf_weights_in_bert(model, config, tf_checkpoint_path):
     """Load tf checkpoints in a pytorch model."""
@@ -266,7 +281,7 @@ class BertEmbeddings(nn.Module):
         #Note that this is the 0-th token layer, so layer_index should be 0
         # embeddings = embeddings @ torch.ones((128,128)) * 0.5
         if USE_NEGC:
-            embeddings = embeddings @ negc0
+            embeddings = embeddings @ layer_index_to_negc[0]
         if PRINT_NEGC_INTERMEDIATE:
             print(f"layer_index=0; embeddings ({embeddings.shape}):")
             print(embeddings)
@@ -921,7 +936,7 @@ class BertModel(BertPreTrainedModel):
 
     def __init__(self, config, add_pooling_layer=True):
         #Added by Yifei
-        print(f"Using Yifei-modified version of BERT Model. USE_NEGC={USE_NEGC}, PRINT={PRINT_NEGC_INTERMEDIATE}.")
+        print(f"Using Yifei-modified version of BERT Model for {MODEL_VER}. USE_NEGC={USE_NEGC}, PRINT={PRINT_NEGC_INTERMEDIATE}.")
         super().__init__(config)
         self.config = config
 
