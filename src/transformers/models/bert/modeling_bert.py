@@ -105,11 +105,9 @@ BERT_PRETRAINED_MODEL_ARCHIVE_LIST = [
     # See all BERT models at https://huggingface.co/models?filter=bert
 ]
 
-#Add by Yifei: load conceptor matrix, negc, for the layers of bert-tiny
+#Add by Yifei: load conceptor matrix, negc, for the layers of bert models (bert-base-uncased, bert-tiny)
 PRINT_NEGC_INTERMEDIATE = False  #Print each layer's output 
 USE_NEGC = True #Use negc in each layer
-# MODEL_VER = 'bert-tiny'
-MODEL_VER = 'bert-base-uncased'
 
 import pickle
 import numpy as np
@@ -125,20 +123,6 @@ model_ver_to_negc_folder = {
     "bert-tiny": "sst-percentile1-and",
     "bert-base-uncased": "sst-percentile0.9-extended"
 }
-package_directory = os.path.dirname(os.path.abspath(__file__))
-path = os.path.join(package_directory, "best-negc-for-intervention", MODEL_VER, model_ver_to_negc_folder[MODEL_VER])
-print(path)
-
-# negc0 = load_conceptor(os.path.join(path, "layer-0.pkl"))
-# negc1 = load_conceptor(os.path.join(path, "layer-1.pkl"))
-# negc2 = load_conceptor(os.path.join(path, "layer-2.pkl"))
-# layer_index_to_negc = {0: negc0, 1: negc1, 2: negc2}
-
-# layer_index_to_negc = {}
-if MODEL_VER == 'bert-tiny':
-    layer_index_to_negc = {i: load_conceptor(os.path.join(path, f"layer-{i}.pkl")) for i in range(3)}
-elif MODEL_VER == 'bert-base-uncased':
-    layer_index_to_negc = {i: load_conceptor(os.path.join(path, f"layer-{i}.pkl")) for i in range(13)}
 
 
 def load_tf_weights_in_bert(model, config, tf_checkpoint_path):
@@ -217,7 +201,7 @@ def load_tf_weights_in_bert(model, config, tf_checkpoint_path):
 class BertEmbeddings(nn.Module):
     """Construct the embeddings from word, position and token_type embeddings."""
 
-    def __init__(self, config):
+    def __init__(self, config, layer_index_to_negc): #Modified by Yifei
         super().__init__()
         self.word_embeddings = nn.Embedding(config.vocab_size, config.hidden_size, padding_idx=config.pad_token_id)
         self.position_embeddings = nn.Embedding(config.max_position_embeddings, config.hidden_size)
@@ -236,6 +220,7 @@ class BertEmbeddings(nn.Module):
                 torch.zeros(self.position_ids.size(), dtype=torch.long),
                 persistent=False,
             )
+        self.layer_index_to_negc = layer_index_to_negc #By Yifei
 
     def forward(
         self,
@@ -277,11 +262,9 @@ class BertEmbeddings(nn.Module):
         embeddings = self.LayerNorm(embeddings)
         embeddings = self.dropout(embeddings)
         
-        #Add by Yifei
-        #Note that this is the 0-th token layer, so layer_index should be 0
-        # embeddings = embeddings @ torch.ones((128,128)) * 0.5
+        #Add by Yifei; Note that this is the 0-th token layer, so layer_index should be 0
         if USE_NEGC:
-            embeddings = embeddings @ layer_index_to_negc[0]
+            embeddings = embeddings @ self.layer_index_to_negc[0]
         if PRINT_NEGC_INTERMEDIATE:
             print(f"layer_index=0; embeddings ({embeddings.shape}):")
             print(embeddings)
@@ -595,11 +578,12 @@ class BertLayer(nn.Module):
 
 
 class BertEncoder(nn.Module):
-    def __init__(self, config):
+    def __init__(self, config, layer_index_to_negc): #Modified by Yifei
         super().__init__()
         self.config = config
         self.layer = nn.ModuleList([BertLayer(config) for _ in range(config.num_hidden_layers)])
         self.gradient_checkpointing = False
+        self.layer_index_to_negc = layer_index_to_negc #By Yifei
 
     def forward(
         self,
@@ -660,11 +644,9 @@ class BertEncoder(nn.Module):
                 )
 
             hidden_states = layer_outputs[0]
-            #Add by Yifei
-            #Note that here exludes the 0-th token layer, so layer_index should be (i+1)
-            # hidden_states = hidden_states @ torch.ones((128,128)) * 0.5
+            #Add by Yifei; Note that here exludes the 0-th token layer, so layer_index should be (i+1)
             if USE_NEGC:
-                hidden_states = hidden_states @ layer_index_to_negc[i+1]
+                hidden_states = hidden_states @ self.layer_index_to_negc[i+1]
             if PRINT_NEGC_INTERMEDIATE:
                 print(f"layer_index={i+1}; hidden_states ({hidden_states.shape}):")
                 print(hidden_states)
@@ -936,12 +918,16 @@ class BertModel(BertPreTrainedModel):
 
     def __init__(self, config, add_pooling_layer=True):
         #Added by Yifei
-        print(f"Using Yifei-modified version of BERT Model for {MODEL_VER}. USE_NEGC={USE_NEGC}, PRINT={PRINT_NEGC_INTERMEDIATE}.")
+        model_ver = config._name_or_path.split('/')[-1]
+        package_directory = os.path.dirname(os.path.abspath(__file__))
+        path = os.path.join(package_directory, "best-negc-for-intervention", model_ver, model_ver_to_negc_folder[model_ver])
+        layer_index_to_negc = {i: load_conceptor(os.path.join(path, f"layer-{i}.pkl")) for i in range(config.num_hidden_layers+1)}
+        print(f"Using Yifei-modified version of BERT Model for {model_ver}. USE_NEGC={USE_NEGC}, PRINT={PRINT_NEGC_INTERMEDIATE}.")
         super().__init__(config)
         self.config = config
 
-        self.embeddings = BertEmbeddings(config)
-        self.encoder = BertEncoder(config)
+        self.embeddings = BertEmbeddings(config, layer_index_to_negc) #Modified by Yifei
+        self.encoder = BertEncoder(config, layer_index_to_negc) #Modified by Yifei
 
         self.pooler = BertPooler(config) if add_pooling_layer else None
 
