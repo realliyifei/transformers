@@ -16,6 +16,7 @@
 """PyTorch BERT model."""
 
 
+from distutils.command.config import config
 import math
 import os
 import warnings
@@ -107,7 +108,9 @@ BERT_PRETRAINED_MODEL_ARCHIVE_LIST = [
 
 #Add by Yifei: load conceptor matrix, negc, for the layers of bert models (bert-base-uncased, bert-tiny)
 PRINT_NEGC_INTERMEDIATE = False  #Print each layer's output 
-USE_NEGC = True #Use negc in each layer
+USE_NEGC = False #Use negc in each layer
+USE_POST_PROCESS = True #Use negc in the last layer
+assert not (USE_NEGC and USE_POST_PROCESS) 
 
 import pickle
 import numpy as np
@@ -647,6 +650,9 @@ class BertEncoder(nn.Module):
             #Add by Yifei; Note that here exludes the 0-th token layer, so layer_index should be (i+1)
             if USE_NEGC:
                 hidden_states = hidden_states @ self.layer_index_to_negc[i+1]
+            if USE_POST_PROCESS:
+                if (i+1) == self.config.num_hidden_layers:
+                    hidden_states = hidden_states @ self.layer_index_to_negc[i+1]
             if PRINT_NEGC_INTERMEDIATE:
                 print(f"layer_index={i+1}; hidden_states ({hidden_states.shape}):")
                 print(hidden_states)
@@ -929,7 +935,7 @@ class BertModel(BertPreTrainedModel):
         package_directory = os.path.dirname(os.path.abspath(__file__))
         path = os.path.join(package_directory, "best-negc-for-intervention", model_ver, model_ver_to_negc_folder[model_ver])
         layer_index_to_negc = {i: load_conceptor(os.path.join(path, f"layer-{i}.pkl")) for i in range(config.num_hidden_layers+1)}
-        print(f"Using Yifei-modified version of BERT Model for {model_ver}. USE_NEGC={USE_NEGC}, PRINT={PRINT_NEGC_INTERMEDIATE}.")
+        print(f"Using Yifei-modified version of BERT Model for {model_ver}.\nUSE_NEGC={USE_NEGC}, USE_POST_PROCESS={USE_POST_PROCESS}, PRINT={PRINT_NEGC_INTERMEDIATE}.")
         super().__init__(config)
         self.config = config
 
