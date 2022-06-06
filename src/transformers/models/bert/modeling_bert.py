@@ -106,7 +106,7 @@ BERT_PRETRAINED_MODEL_ARCHIVE_LIST = [
 ]
 
 #Add by Yifei: load conceptor matrix, negc, for the layers of bert models (bert-base-uncased, bert-tiny)
-PRINT_NEGC_INTERMEDIATE = False  #Print each layer's output 
+PRINT_NEGC_INTERMEDIATE = True  #Print each layer's output 
 USE_NEGC = True #Use negc in each layer
 
 import pickle
@@ -918,7 +918,11 @@ class BertModel(BertPreTrainedModel):
 
     def __init__(self, config, add_pooling_layer=True):
         #Added by Yifei
-        model_ver = config._name_or_path.split('/')[-1]
+        # model_ver = config._name_or_path.split('/')[-1]
+        if "bert-tiny" in config._name_or_path:
+            model_ver = "bert-tiny"
+        elif "bert-base-uncased" in config._name_or_path:
+            model_ver = "bert-base-uncased"
         package_directory = os.path.dirname(os.path.abspath(__file__))
         path = os.path.join(package_directory, "best-negc-for-intervention", model_ver, model_ver_to_negc_folder[model_ver])
         layer_index_to_negc = {i: load_conceptor(os.path.join(path, f"layer-{i}.pkl")) for i in range(config.num_hidden_layers+1)}
