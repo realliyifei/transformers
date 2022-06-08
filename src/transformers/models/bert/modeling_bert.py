@@ -107,9 +107,9 @@ BERT_PRETRAINED_MODEL_ARCHIVE_LIST = [
 ]
 
 #Add by Yifei: load conceptor matrix, negc, for the layers of bert models (bert-base-uncased, bert-tiny)
-PRINT_NEGC_INTERMEDIATE = False  #Print each layer's output 
 USE_NEGC = True #Use negc in each layer
 USE_POST_PROCESS = False #Use negc in the last layer
+PRINT_NEGC_INTERMEDIATE = False  #Print each layer's output 
 assert not (USE_NEGC and USE_POST_PROCESS) 
 
 import pickle
@@ -124,7 +124,8 @@ def load_conceptor(path):
 
 model_ver_to_negc_folder = {
     "bert-tiny": "sst-percentile1-and",
-    "bert-base-uncased": "sst-percentile0.9-extended"
+    "bert-base-uncased": "brown-percentile0.4-and"
+    # "bert-base-uncased": "sst-percentile0.9-extended"
 }
 
 
