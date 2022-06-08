@@ -124,8 +124,8 @@ def load_conceptor(path):
 
 model_ver_to_negc_folder = {
     "bert-tiny": "sst-percentile1-and",
-    "bert-base-uncased": "brown-percentile0.4-and"
-    # "bert-base-uncased": "sst-percentile0.9-extended"
+    # "bert-base-uncased": "brown-percentile0.4-and"
+    "bert-base-uncased": "sst-percentile0.9-extended"
 }
 
 
@@ -936,7 +936,8 @@ class BertModel(BertPreTrainedModel):
         package_directory = os.path.dirname(os.path.abspath(__file__))
         path = os.path.join(package_directory, "best-negc-for-intervention", model_ver, model_ver_to_negc_folder[model_ver])
         layer_index_to_negc = {i: load_conceptor(os.path.join(path, f"layer-{i}.pkl")) for i in range(config.num_hidden_layers+1)}
-        print(f"Using Yifei-modified version of BERT Model for {model_ver}.\nUSE_NEGC={USE_NEGC}, USE_POST_PROCESS={USE_POST_PROCESS}, PRINT={PRINT_NEGC_INTERMEDIATE}.")
+        print(f"Using Yifei-modified version of BERT Model for {model_ver}, with negc folder {model_ver_to_negc_folder[model_ver]}.")
+        print(f"USE_NEGC={USE_NEGC}, USE_POST_PROCESS={USE_POST_PROCESS}, PRINT={PRINT_NEGC_INTERMEDIATE}.")
         super().__init__(config)
         self.config = config
 
