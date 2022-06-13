@@ -125,8 +125,8 @@ def load_conceptor(path):
 
 model_ver_to_negc_folder = {
     "bert-tiny": "sst-percentile1-and",
-    # "bert-base-uncased": "brown-percentile0.4-and"
-    "bert-base-uncased": "sst-percentile0.9-extended" 
+    "bert-base-uncased": "brown-percentile0.4-and"
+    # "bert-base-uncased": "sst-percentile0.9-extended" 
 }
 
 
