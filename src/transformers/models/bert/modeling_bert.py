@@ -110,8 +110,15 @@ BERT_PRETRAINED_MODEL_ARCHIVE_LIST = [
 USE_NEGC = True #Use negc in each layer
 USE_POST_PROCESS = False #Use negc in the last layer
 
+model_ver_to_negc_folder = {
+    "bert-tiny": "sst-percentile1-and",
+    "bert-base-uncased": "brown-percentile0.4-and"
+    # "bert-base-uncased": "sst-percentile0.9-extended"  
+}
+
 PRINT_NEGC_INTERMEDIATE = False  #Print each layer's output 
 assert not (USE_NEGC and USE_POST_PROCESS) 
+
 
 import pickle
 import numpy as np
@@ -122,12 +129,7 @@ def load_conceptor(path):
     logger.info(f"Loading conceptor from {path} (device: {device}).")
     negc = torch.tensor(pickle.load(open(path,'rb'))['negC'].astype(np.float32)).to(device)
     return negc
-
-model_ver_to_negc_folder = {
-    "bert-tiny": "sst-percentile1-and",
-    # "bert-base-uncased": "brown-percentile0.4-and"
-    "bert-base-uncased": "sst-percentile0.9-extended" 
-}
+#End of Yifei's Modification     
 
 
 def load_tf_weights_in_bert(model, config, tf_checkpoint_path):
