@@ -277,7 +277,6 @@ class BertEmbeddings(nn.Module):
             embeddings = embeddings @ self.layer_index_to_negc[0]
         if USE_PARTIAL_NEGC and 0 in PARTIAL_LAYER_LIST:
             embeddings = embeddings @ self.layer_index_to_negc[0]
-            print('activate index 0')
         if PRINT_NEGC_INTERMEDIATE:
             print(f"layer_index=0; embeddings ({embeddings.shape}):")
             print(embeddings)
@@ -667,7 +666,6 @@ class BertEncoder(nn.Module):
             if USE_PARTIAL_NEGC:
                 if (i+1) in PARTIAL_LAYER_LIST:
                     hidden_states = hidden_states @ self.layer_index_to_negc[i+1]
-                    print(f'activate index {i+1}')
             if PRINT_NEGC_INTERMEDIATE:
                 print(f"layer_index={i+1}; hidden_states ({hidden_states.shape}):")
                 print(hidden_states)
@@ -951,7 +949,9 @@ class BertModel(BertPreTrainedModel):
         path = os.path.join(package_directory, "best-negc-for-intervention", model_ver, model_ver_to_negc_folder[model_ver])
         layer_index_to_negc = {i: load_conceptor(os.path.join(path, f"layer-{i}.pkl")) for i in range(config.num_hidden_layers+1)}
         print(f"Using Yifei-modified version of BERT Model for {model_ver}, with negc folder {model_ver_to_negc_folder[model_ver]}.")
-        print(f"USE_NEGC={USE_NEGC}, USE_POST_PROCESS={USE_POST_PROCESS}, USE_PARTIAL_NEGC={USE_PARTIAL_NEGC}, PRINT={PRINT_NEGC_INTERMEDIATE}.")
+        activate_mode = "USE_NEGC" if USE_NEGC else ("USE_POST_PROCESS" if USE_POST_PROCESS else "USE_PARTIAL_NEGC")
+        print(f"Activate mode is {activate_mode}; PRINT is {PRINT_NEGC_INTERMEDIATE}.")
+        # print(f"USE_NEGC={USE_NEGC}, USE_POST_PROCESS={USE_POST_PROCESS}, USE_PARTIAL_NEGC={USE_PARTIAL_NEGC}, PRINT={PRINT_NEGC_INTERMEDIATE}.")
         if USE_PARTIAL_NEGC:
             print(f"PARTIAL_LAYER_LIST={PARTIAL_LAYER_LIST}")
         super().__init__(config)
