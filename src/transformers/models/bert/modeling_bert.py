@@ -111,7 +111,8 @@ USE_NEGC = False #Use negc in each layer
 USE_POST_PROCESS = False #Use negc in the last layer
 
 USE_PARTIAL_NEGC = True #Use negc in some layers, given in list PARTIAL_LAYER_LIST
-PARTIAL_LAYER_LIST = [0,6,12] 
+# PARTIAL_LAYER_LIST = [0,6,12] 
+PARTIAL_LAYER_LIST = [0,2,4,6,8,10,12] 
 
 model_ver_to_negc_folder = {
     "bert-tiny": "sst-percentile1-and",
