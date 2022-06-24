@@ -107,8 +107,8 @@ BERT_PRETRAINED_MODEL_ARCHIVE_LIST = [
 ]
 
 #Add by Yifei: load conceptor matrix, negc, for the layers of bert models (bert-base-uncased, bert-tiny)
-USE_NEGC = True #Use negc in each layer
-USE_POST_PROCESS = False #Use negc in the last layer
+USE_NEGC = False #Use negc in each layer
+USE_POST_PROCESS = True #Use negc in the last layer
 
 USE_PARTIAL_NEGC = False #Use negc in some layers, given in list PARTIAL_LAYER_LIST
 # PARTIAL_LAYER_LIST = [0,6,12] 
