@@ -116,8 +116,8 @@ PARTIAL_LAYER_LIST = [0,2,4,6,8,10,12]
 
 model_ver_to_negc_folder = {
     "bert-tiny": "sst-percentile1-and",
-    # "bert-base-uncased": "brown-percentile0.4-and"
-    "bert-base-uncased": "sst-percentile0.9-extended"  
+    "bert-base-uncased": "brown-percentile0.4-and"
+    # "bert-base-uncased": "sst-percentile0.9-extended"  
 }
 
 PRINT_NEGC_INTERMEDIATE = False  #Print each layer's output 
