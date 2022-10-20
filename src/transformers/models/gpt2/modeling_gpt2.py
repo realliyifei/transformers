@@ -396,7 +396,7 @@ class GPT2Block(nn.Module):
         self.attn = GPT2Attention(config, layer_idx=layer_idx)
         self.ln_2 = nn.LayerNorm(hidden_size, eps=config.layer_norm_epsilon)
         #Added by Yifei
-        self.layer_index == layer_idx 
+        self.layer_idx == layer_idx 
         self.config = config
         self.layer_index_to_negc = layer_index_to_negc
         #End added by Yifei
@@ -728,6 +728,7 @@ class GPT2Model(GPT2PreTrainedModel):
         self.drop = nn.Dropout(config.embd_pdrop)
         
         ## Modified by Yifei
+        print("config.num_hidden_layers", config.num_hidden_layers)
         self.h = nn.ModuleList([GPT2Block(config, layer_index_to_negc, layer_idx=i) for i in range(config.num_hidden_layers)])
         # self.h = nn.ModuleList([GPT2Block(config, layer_idx=i) for i in range(config.num_hidden_layers)])
         
