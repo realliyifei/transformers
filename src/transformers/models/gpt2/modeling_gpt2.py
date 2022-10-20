@@ -462,7 +462,9 @@ class GPT2Block(nn.Module):
         hidden_states = residual + feed_forward_hidden_states
         
         #Add by Yifei
+        print("self.layer_idx", self.layer_idx)
         if USE_POST_PROCESS and (self.layer_idx + 1) == self.config.num_hidden_layers:
+            print("Multiplying conceptor matrix on hidden states at self.layer_idx = ", self.layer_idx)
             hidden_states = hidden_states @ self.layer_index_to_negc[self.layer_idx + 1]
         #End added by Yifei
 
