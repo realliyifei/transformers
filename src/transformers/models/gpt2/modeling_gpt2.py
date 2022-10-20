@@ -18,6 +18,7 @@
 import math
 import os
 from dataclasses import dataclass
+from tkinter.tix import Tree
 from typing import Optional, Tuple, Union
 
 import torch
@@ -69,6 +70,32 @@ GPT2_PRETRAINED_MODEL_ARCHIVE_LIST = [
     # See all GPT-2 models at https://huggingface.co/models?filter=gpt2
 ]
 
+
+#Add by Yifei: load conceptor matrix, negc, for the layers of bert models (bert-base-uncased, bert-tiny)
+USE_NEGC = False #Use negc in each layer
+USE_POST_PROCESS = True #Use negc in the last layer
+
+USE_PARTIAL_NEGC = False #Use negc in some layers, given in list PARTIAL_LAYER_LIST
+# PARTIAL_LAYER_LIST = [0,6,12] 
+# PARTIAL_LAYER_LIST = [0,2,4,6,8,10,12] 
+
+model_ver_to_negc_folder = {
+    "gpt2": "brown-percentile0.3-pronouns"
+}
+
+PRINT_NEGC_INTERMEDIATE = True #Print each layer's output 
+assert USE_NEGC + USE_POST_PROCESS + USE_PARTIAL_NEGC == 1
+
+import pickle
+import numpy as np
+
+def load_conceptor(path):
+    device = "cuda:0" if torch.cuda.is_available() else "cpu"
+    print(f"Loading conceptor from {path} (device: {device}).")
+    logger.info(f"Loading conceptor from {path} (device: {device}).")
+    negc = torch.tensor(pickle.load(open(path,'rb'))['negC'].astype(np.float32)).to(device)
+    return negc
+#End of Yifei's Modification     
 
 def load_tf_weights_in_gpt2(model, config, gpt2_checkpoint_path):
     """Load tf checkpoints in a pytorch model"""
@@ -360,7 +387,7 @@ class GPT2MLP(nn.Module):
 
 
 class GPT2Block(nn.Module):
-    def __init__(self, config, layer_idx=None):
+    def __init__(self, config, layer_index_to_negc, layer_idx=None):
         super().__init__()
         hidden_size = config.hidden_size
         inner_dim = config.n_inner if config.n_inner is not None else 4 * hidden_size
@@ -368,6 +395,11 @@ class GPT2Block(nn.Module):
         self.ln_1 = nn.LayerNorm(hidden_size, eps=config.layer_norm_epsilon)
         self.attn = GPT2Attention(config, layer_idx=layer_idx)
         self.ln_2 = nn.LayerNorm(hidden_size, eps=config.layer_norm_epsilon)
+        #Added by Yifei
+        self.layer_index == layer_idx 
+        self.config = config
+        self.layer_index_to_negc = layer_index_to_negc
+        #End added by Yifei
 
         if config.add_cross_attention:
             self.crossattention = GPT2Attention(config, is_cross_attention=True, layer_idx=layer_idx)
@@ -428,6 +460,11 @@ class GPT2Block(nn.Module):
         feed_forward_hidden_states = self.mlp(hidden_states)
         # residual connection
         hidden_states = residual + feed_forward_hidden_states
+        
+        #Add by Yifei
+        if USE_POST_PROCESS and (self.layer_idx + 1) == self.config.num_hidden_layers:
+            hidden_states = hidden_states @ self.layer_index_to_negc[self.layer_idx + 1]
+        #End added by Yifei
 
         if use_cache:
             outputs = (hidden_states,) + outputs
@@ -669,6 +706,18 @@ class GPT2Model(GPT2PreTrainedModel):
     _keys_to_ignore_on_load_missing = ["attn.masked_bias"]
 
     def __init__(self, config):
+        #Added by Yifei
+        package_directory = os.path.dirname(os.path.abspath(__file__))
+        model_ver = 'gpt2'
+        path = os.path.join(package_directory, "best-negc-for-intervention", model_ver, model_ver_to_negc_folder[model_ver])
+        # layer_index_to_negc = {i: load_conceptor(os.path.join(path, f"layer-{i}.pkl")) for i in range(config.num_hidden_layers+1)}
+        layer_index_to_negc = {12: load_conceptor(os.path.join(path, f"layer-12.pkl"))}
+        activate_mode = "USE_NEGC" if USE_NEGC else ("USE_POST_PROCESS" if USE_POST_PROCESS else "USE_PARTIAL_NEGC")
+        print(f"Activate mode is {activate_mode}; PRINT is {PRINT_NEGC_INTERMEDIATE}.")
+        # print(f"USE_NEGC={USE_NEGC}, USE_POST_PROCESS={USE_POST_PROCESS}, USE_PARTIAL_NEGC={USE_PARTIAL_NEGC}, PRINT={PRINT_NEGC_INTERMEDIATE}.")
+        # if USE_PARTIAL_NEGC:
+        #     print(f"PARTIAL_LAYER_LIST={PARTIAL_LAYER_LIST}")
+        
         super().__init__(config)
 
         self.embed_dim = config.hidden_size
@@ -677,7 +726,12 @@ class GPT2Model(GPT2PreTrainedModel):
         self.wpe = nn.Embedding(config.max_position_embeddings, self.embed_dim)
 
         self.drop = nn.Dropout(config.embd_pdrop)
-        self.h = nn.ModuleList([GPT2Block(config, layer_idx=i) for i in range(config.num_hidden_layers)])
+        
+        ## Modified by Yifei
+        self.h = nn.ModuleList([GPT2Block(config, layer_index_to_negc, layer_idx=i) for i in range(config.num_hidden_layers)])
+        # self.h = nn.ModuleList([GPT2Block(config, layer_idx=i) for i in range(config.num_hidden_layers)])
+        
+        
         self.ln_f = nn.LayerNorm(self.embed_dim, eps=config.layer_norm_epsilon)
 
         # Model parallel
