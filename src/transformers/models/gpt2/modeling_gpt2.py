@@ -387,7 +387,6 @@ class GPT2MLP(nn.Module):
 
 
 class GPT2Block(nn.Module):
-    # def __init__(self, config, layer_index_to_negc, layer_idx=None): #Modified by Yifei
     def __init__(self, config, layer_idx=None):
         super().__init__()
         hidden_size = config.hidden_size
@@ -396,11 +395,6 @@ class GPT2Block(nn.Module):
         self.ln_1 = nn.LayerNorm(hidden_size, eps=config.layer_norm_epsilon)
         self.attn = GPT2Attention(config, layer_idx=layer_idx)
         self.ln_2 = nn.LayerNorm(hidden_size, eps=config.layer_norm_epsilon)
-        #Added by Yifei
-        # self.layer_idx = layer_idx 
-        # self.config = config
-        # self.layer_index_to_negc = layer_index_to_negc
-        #End added by Yifei
 
         if config.add_cross_attention:
             self.crossattention = GPT2Attention(config, is_cross_attention=True, layer_idx=layer_idx)
@@ -462,12 +456,6 @@ class GPT2Block(nn.Module):
         # residual connection
         hidden_states = residual + feed_forward_hidden_states
         
-        #Add by Yifei
-        # print("self.layer_idx", self.layer_idx)
-        # if USE_POST_PROCESS and (self.layer_idx + 1) == self.config.num_hidden_layers:
-        #     print("Multiplying conceptor matrix on hidden states at self.layer_idx = ", self.layer_idx)
-        #     hidden_states = hidden_states @ self.layer_index_to_negc[self.layer_idx + 1]
-        #End added by Yifei
 
         if use_cache:
             outputs = (hidden_states,) + outputs
@@ -719,26 +707,18 @@ class GPT2Model(GPT2PreTrainedModel):
 
         self.drop = nn.Dropout(config.embd_pdrop)
         
-        ## Note: This method is successful to multiply conceptor matrix to the last layer,
-        ##       but it doesn't output the same output as post processing does,
-        ##       perhaps because, unlike BERTModel, there is some computation after GPT2Block
-        ##       in that GPT2Model that I haven't figured out. 
-        ##       Thus, we resort to Trainer.py for GLUE benchmark.
+        
         # #Added by Yifei
         package_directory = os.path.dirname(os.path.abspath(__file__))
         model_ver = 'gpt2'
         path = os.path.join(package_directory, "best-negc-for-intervention", model_ver, model_ver_to_negc_folder[model_ver])
         # layer_index_to_negc = {i: load_conceptor(os.path.join(path, f"layer-{i}.pkl")) for i in range(config.num_hidden_layers+1)}
-        # layer_index_to_negc = {12: load_conceptor(os.path.join(path, f"layer-12.pkl"))}
         self.negc = load_conceptor(os.path.join(path, f"layer-12.pkl"))
         activate_mode = "USE_NEGC" if USE_NEGC else ("USE_POST_PROCESS" if USE_POST_PROCESS else "USE_PARTIAL_NEGC")
         print(f"Activate mode is {activate_mode}; PRINT is {PRINT_NEGC_INTERMEDIATE}.")
         # print(f"USE_NEGC={USE_NEGC}, USE_POST_PROCESS={USE_POST_PROCESS}, USE_PARTIAL_NEGC={USE_PARTIAL_NEGC}, PRINT={PRINT_NEGC_INTERMEDIATE}.")
         ## End of added by Yifei
         
-        ## Modified by Yifei
-        # print("config.num_hidden_layers", config.num_hidden_layers)
-        # self.h = nn.ModuleList([GPT2Block(config, layer_index_to_negc, layer_idx=i) for i in range(config.num_hidden_layers)])
         self.h = nn.ModuleList([GPT2Block(config, layer_idx=i) for i in range(config.num_hidden_layers)])
         
         self.ln_f = nn.LayerNorm(self.embed_dim, eps=config.layer_norm_epsilon)
