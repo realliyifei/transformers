@@ -71,8 +71,8 @@ GPT2_PRETRAINED_MODEL_ARCHIVE_LIST = [
 ]
 
 
-#Add by Yifei: load conceptor matrix, negc, for the layers of bert models (bert-base-uncased, bert-tiny)
-USE_NEGC = False #Use negc in each layer
+#Add by Yifei: load conceptor matrix, negc, for the layers of gpt2 model 
+USE_NEGC = False #Use negc in each layer; doesn't ready now
 USE_POST_PROCESS = True #Use negc in the last layer
 
 USE_PARTIAL_NEGC = False #Use negc in some layers, given in list PARTIAL_LAYER_LIST
