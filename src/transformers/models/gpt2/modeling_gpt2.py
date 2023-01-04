@@ -1109,6 +1109,12 @@ class GPT2LMHeadModel(GPT2PreTrainedModel):
         )
         hidden_states = transformer_outputs[0]
 
+        #Add by Yifei
+        if USE_POST_PROCESS:
+            print("Multiply conceptor matrix...")
+            hidden_states[12] = hidden_states[12] @ self.negc
+        #End add by Yifei
+        
         # Set device for model parallelism
         if self.model_parallel:
             torch.cuda.set_device(self.transformer.first_device)
