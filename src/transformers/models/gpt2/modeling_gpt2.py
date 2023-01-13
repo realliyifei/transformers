@@ -83,8 +83,8 @@ model_ver_to_negc_folder = {
     "gpt2": "brown-percentile0.3-pronouns"
 }
 
-PRINT_NEGC_INTERMEDIATE = True #Print each layer's output 
-assert USE_NEGC + USE_POST_PROCESS + USE_PARTIAL_NEGC == 1
+# PRINT_NEGC_INTERMEDIATE = True #Print each layer's output 
+# assert USE_NEGC + USE_POST_PROCESS + USE_PARTIAL_NEGC == 1
 
 import pickle
 import numpy as np
@@ -714,9 +714,16 @@ class GPT2Model(GPT2PreTrainedModel):
         path = os.path.join(package_directory, "best-negc-for-intervention", model_ver, model_ver_to_negc_folder[model_ver])
         # layer_index_to_negc = {i: load_conceptor(os.path.join(path, f"layer-{i}.pkl")) for i in range(config.num_hidden_layers+1)}
         self.negc = load_conceptor(os.path.join(path, f"layer-12.pkl"))
-        activate_mode = "USE_NEGC" if USE_NEGC else ("USE_POST_PROCESS" if USE_POST_PROCESS else "USE_PARTIAL_NEGC")
-        print(f"Activate mode is {activate_mode}; PRINT is {PRINT_NEGC_INTERMEDIATE}.")
-        # print(f"USE_NEGC={USE_NEGC}, USE_POST_PROCESS={USE_POST_PROCESS}, USE_PARTIAL_NEGC={USE_PARTIAL_NEGC}, PRINT={PRINT_NEGC_INTERMEDIATE}.")
+        if USE_NEGC:
+            activate_mode = "USE_NEGC"
+        elif USE_POST_PROCESS:
+            activate_mode = "USE_POST_PROCESS"
+        elif USE_PARTIAL_NEGC:
+            activate_mode = "USE_PARTIAL_NEGC"
+        else:
+            activate_mode = "NONE"
+        print(f"Activate mode is {activate_mode}.")
+        # print(f"PRINT is {PRINT_NEGC_INTERMEDIATE}.")
         ## End of added by Yifei
         
         self.h = nn.ModuleList([GPT2Block(config, layer_idx=i) for i in range(config.num_hidden_layers)])
@@ -960,8 +967,9 @@ class GPT2Model(GPT2PreTrainedModel):
 
         hidden_states = hidden_states.view(output_shape)
         # Add last hidden state
+        # print("output_hidden_states from GPT2Model", output_hidden_states) # Added by Yifei
         if output_hidden_states:
-            #Add by Yifei
+            # #Add by Yifei
             if USE_POST_PROCESS:
                 print("Multiply conceptor matrix...")
                 hidden_states = hidden_states @ self.negc
@@ -1028,7 +1036,7 @@ class GPT2LMHeadModel(GPT2PreTrainedModel):
 
     def get_output_embeddings(self):
         return self.lm_head
-
+    
     def set_output_embeddings(self, new_embeddings):
         self.lm_head = new_embeddings
 
@@ -1107,17 +1115,19 @@ class GPT2LMHeadModel(GPT2PreTrainedModel):
             output_hidden_states=output_hidden_states,
             return_dict=return_dict,
         )
-        hidden_states = transformer_outputs[0]
+        hidden_states = transformer_outputs[0] # (bs, seq_len, dim) => torch.Size([1, 1024, 768])
+        # print("hidden_states.shape:", hidden_states.shape) # torch.Size([1, 1024, 768])
+        # print("output_hidden_states", output_hidden_states) # None
+        # print("transformer_outputs", transformer_outputs)
 
         #Add by Yifei
-        # print("hidden_states.shape:", hidden_states.shape) # torch.Size([1, 1024, 768])
         # if output_hidden_states:
         #     if USE_POST_PROCESS:
         #         print("Multiply conceptor matrix...")
-        #         hidden_states = hidden_states @ self.negc
-        if USE_POST_PROCESS:
-            print("Multiply conceptor matrix...")
-            hidden_states = hidden_states @ self.transformer.negc
+        #         hidden_states = hidden_states @ self.transformer.negc
+        # if USE_POST_PROCESS:
+        #     print("Multiply conceptor matrix...")
+        #     hidden_states = hidden_states @ self.transformer.negc
         #End add by Yifei
         
         # Set device for model parallelism
@@ -1125,7 +1135,7 @@ class GPT2LMHeadModel(GPT2PreTrainedModel):
             torch.cuda.set_device(self.transformer.first_device)
             hidden_states = hidden_states.to(self.lm_head.weight.device)
 
-        lm_logits = self.lm_head(hidden_states)
+        lm_logits = self.lm_head(hidden_states) # (bs, seq_len, dim) => torch.Size([1, 1024, 50257])
 
         loss = None
         if labels is not None:
